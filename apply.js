@@ -11,10 +11,14 @@ async function main() {
     "https://www.linkedin.com/jobs/search/?f_LF=f_AL%2Cf_EA&f_TPR=r604800&geoId=103644278&keywords=software%20engineer&location=United%20States";
   try {
     await driver.get(linkedInUrlNew);
+    await driver.sleep(1000 * appSpeedFactor);
     await signIn(driver);
-    const done = prompt("ENTER ANY KEY TO CONTINUE\n");
+    prompt("ENTER ANY KEY TO CONTINUE");
     await driver.sleep(3000 * appSpeedFactor);
 
+    let values = await driver.executeScript(extractJobFields);
+
+    console.log(values);
     let lastPage = await driver.executeScript(getLastPageNum);
 
     for (let i = 1; i <= lastPage; i++) {
@@ -32,7 +36,7 @@ async function main() {
           await driver.sleep(500 * appSpeedFactor);
           await apply(driver);
         } catch (err) {
-          console.log("can't the next job");
+          console.log("can't click the next job");
           continue;
         }
         //ok
@@ -168,4 +172,37 @@ async function scrollLoadJobs(driver) {
   await driver.sleep(1000 * appSpeedFactor);
   driver.executeScript(scrollDown);
   driver.executeScript(scrollUp);
+}
+
+function extractJobFields() {
+  let job = document.getElementsByClassName(
+    "jobs-details-top-card__job-title-link ember-view"
+  )[0];
+  let jobTitle = job.innerText;
+  let jobURL = job.href;
+
+  
+  try {
+    let jobPoster = document.getElementsByClassName(
+      "jobs-poster__wrapper display-flex flex-row"
+    )[0].children[0].href;
+  } catch {
+    let jobPoster = "";
+  }
+  var loc = document.getElementsByClassName("jobs-details-top-card__bullet");
+  loc = loc[0].innerText.substring(1);
+  let companyName = document.getElementsByClassName(
+    "jobs-details-top-card__company-url t-black--light t-normal ember-view"
+  );
+  companyName = companyName[0].innerText;
+  companyURL = companyName[0].href;
+  companyName = companyName.substring(0, companyName.length - 1);
+
+  let airtableRecord = {
+    "Job Title" : jobTitle,
+    "Location:" : loc,
+    "Application URL": jobURL,
+    "Ap"
+  }
+  return [jobTitle, jobURL];
 }

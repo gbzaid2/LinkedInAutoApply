@@ -3,8 +3,13 @@
 var Airtable = require('airtable');
 Airtable.configure({
     endpointUrl: 'https://api.airtable.com',
-    apiKey: 'YOUR_API_KEY'
+    apiKey: 'keypdLR94b8TBO3rP'
 });
 var base = Airtable.base('apph5lfwSYwXPauyS');
 
+const pushToAirtable = async function(application){
+    base('Job Leads').create(application, (err, record) => {});
+}
 
+
+exports.pushToAirtable = pushToAirtable;
