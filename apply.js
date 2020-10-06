@@ -3,7 +3,7 @@ const { email, password } = require("./linkedinLogin.json");
 const prompt = require("prompt-sync")();
 
 let appSpeedFactor = 1; // Controls speed of applying
-async function example() {
+async function main() {
   let driver = await new Builder().forBrowser("firefox").build();
   const linkedInUrl =
     "https://www.linkedin.com/jobs/search/?f_LF=f_AL%2Cf_EA&f_TPR=r86400&geoId=103644278&keywords=software%20engineer&location=United%20States";
@@ -17,7 +17,7 @@ async function example() {
 
     let lastPage = await driver.executeScript(getLastPageNum);
 
-    for (let i = 8; i <= lastPage; i++) {
+    for (let i = 1; i <= lastPage; i++) {
       await driver.sleep(2000);
       await scrollLoadJobs(driver);
       let jobs = await driver.findElements(
@@ -32,7 +32,7 @@ async function example() {
           await driver.sleep(500 * appSpeedFactor);
           await apply(driver);
         } catch (err) {
-          console.log(err);
+          console.log("can't the next job");
           continue;
         }
         //ok
@@ -40,7 +40,7 @@ async function example() {
       await driver.executeScript(clickPage, i + 1);
     }
   } catch (err) {
-    console.log(err);
+    console.log("Can't start clicking jobs");
     //driver.close();
   } finally {
     //await driver.quit();
@@ -48,7 +48,7 @@ async function example() {
   }
 }
 
-example();
+main();
 
 async function signIn(driver) {
   await driver.findElement(By.className("nav__button-secondary")).click();
@@ -106,10 +106,12 @@ async function apply(driver) {
   // Submit Application if possible
   try {
     // unfollow company
+    await driver.sleep(500 * appSpeedFactor);
     await driver.executeScript(unfollowCompany);
     if (!(await driver.executeScript(verifySubmitAppButton))) {
       throw "No submit button here";
     }
+    await driver.sleep(500 * appSpeedFactor);
     const submitApp = await driver.findElements(
       By.className(
         "artdeco-button artdeco-button--2 artdeco-button--primary ember-view"
@@ -118,13 +120,14 @@ async function apply(driver) {
     await submitApp[0].click();
   } catch (err) {
     // otherwise quit application
-    console.log(err);
+    console.log("Can't complete this app, maybe its multi page?");
     const closeAppBtn = await driver.findElements(
       By.className(
         "artdeco-modal__dismiss artdeco-button artdeco-button--circle artdeco-button--muted artdeco-button--2 artdeco-button--tertiary ember-view"
       )
     );
     closeAppBtn[0].click();
+    await driver.sleep(300 * appSpeedFactor);
     await driver.sleep(500 * appSpeedFactor);
     const discardBtn = await driver.findElements(
       By.className(
