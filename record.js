@@ -8,7 +8,15 @@ Airtable.configure({
 var base = Airtable.base('apph5lfwSYwXPauyS');
 
 const pushToAirtable = async function(application){
-    base('Job Leads').create(application, (err, record) => {});
+    console.log("i'm in airtable function");
+    base('Job Leads').create(application, (err, record) => {
+        if(err){
+            console.log("Couldn't push to airtable");
+        } else {
+            console.log("Pushed to airtable");
+            console.log(record);
+        }
+    });
 }
 
 

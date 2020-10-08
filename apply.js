@@ -1,6 +1,8 @@
 const { Builder, By, Key, until } = require("selenium-webdriver");
 const { email, password } = require("./linkedinLogin.json");
 const prompt = require("prompt-sync")();
+const todayDate = require("./dateToday.js");
+const pushToAirTable = require("./record").pushToAirtable;
 
 let appSpeedFactor = 1; // Controls speed of applying
 async function main() {
@@ -16,9 +18,6 @@ async function main() {
     prompt("ENTER ANY KEY TO CONTINUE");
     await driver.sleep(3000 * appSpeedFactor);
 
-    let values = await driver.executeScript(extractJobFields);
-
-    console.log(values);
     let lastPage = await driver.executeScript(getLastPageNum);
 
     for (let i = 1; i <= lastPage; i++) {
@@ -31,12 +30,16 @@ async function main() {
       );
       for (job of jobs) {
         try {
-          await driver.sleep(500 * appSpeedFactor);
+          await driver.sleep(1000 * appSpeedFactor);
           job.click();
-          await driver.sleep(500 * appSpeedFactor);
+          job.click();
+          let airtableRecord = await driver.executeScript(extractJobFields);
+          airtableRecord["Applied Date"] = todayDate;
+          pushToAirTable(airtableRecord);
+          await driver.sleep(2000 * appSpeedFactor);
           await apply(driver);
         } catch (err) {
-          console.log("can't click the next job");
+          
           continue;
         }
         //ok
@@ -99,13 +102,17 @@ function verifySubmitAppButton() {
 
 async function apply(driver) {
   // Click Easy Apply
-  const easyApplyBtn = await driver.findElements(
-    By.className(
-      "jobs-apply-button artdeco-button artdeco-button--3 artdeco-button--primary ember-view"
-    )
-  );
-  await driver.sleep(500 * appSpeedFactor);
-  await easyApplyBtn[0].click();
+  try {
+    const easyApplyBtn = await driver.findElements(
+      By.className(
+        "jobs-apply-button artdeco-button artdeco-button--3 artdeco-button--primary ember-view"
+      )
+    );
+    await driver.sleep(500 * appSpeedFactor);
+    await easyApplyBtn[0].click();
+  } catch {
+    return;
+  }
 
   // Submit Application if possible
   try {
@@ -114,17 +121,37 @@ async function apply(driver) {
     await driver.executeScript(unfollowCompany);
     if (!(await driver.executeScript(verifySubmitAppButton))) {
       throw "No submit button here";
+    } else {
+      let submitApp = await driver.findElements(
+        By.className(
+          "artdeco-button artdeco-button--2 artdeco-button--primary ember-view"
+        )
+      );
+      await submitApp[0].click();
+      await driver.wait(1000 * appSpeedFactor);
+
     }
     await driver.sleep(500 * appSpeedFactor);
-    const submitApp = await driver.findElements(
+    let submitApp = await driver.findElements(
       By.className(
         "artdeco-button artdeco-button--2 artdeco-button--primary ember-view"
       )
     );
-    await submitApp[0].click();
+
+    while(await submitApp[0].getText() === "Next" || await submitApp[0].getText() === "Review" || await submitApp[0].getText() === "Review Application"){
+      await driver.sleep(1000 * appSpeedFactor);
+      await submitApp[0].click(); 
+      submitApp = await driver.findElements(
+        By.className(
+          "artdeco-button artdeco-button--2 artdeco-button--primary ember-view"
+        )
+      );
+    }
+
+
   } catch (err) {
     // otherwise quit application
-    console.log("Can't complete this app, maybe its multi page?");
+    
     const closeAppBtn = await driver.findElements(
       By.className(
         "artdeco-modal__dismiss artdeco-button artdeco-button--circle artdeco-button--muted artdeco-button--2 artdeco-button--tertiary ember-view"
@@ -181,28 +208,39 @@ function extractJobFields() {
   let jobTitle = job.innerText;
   let jobURL = job.href;
 
-  
+  let jobPoster;
   try {
-    let jobPoster = document.getElementsByClassName(
+    jobPoster = document.getElementsByClassName(
       "jobs-poster__wrapper display-flex flex-row"
     )[0].children[0].href;
   } catch {
-    let jobPoster = "";
+    jobPoster = "";
   }
   var loc = document.getElementsByClassName("jobs-details-top-card__bullet");
   loc = loc[0].innerText.substring(1);
-  let companyName = document.getElementsByClassName(
+  let company = document.getElementsByClassName(
     "jobs-details-top-card__company-url t-black--light t-normal ember-view"
   );
-  companyName = companyName[0].innerText;
-  companyURL = companyName[0].href;
+  companyName = company[0].innerText;
+  companyURL = company[0].href;
   companyName = companyName.substring(0, companyName.length - 1);
 
   let airtableRecord = {
-    "Job Title" : jobTitle,
-    "Location:" : loc,
+    "Job Title": jobTitle,
+    Location: loc,
     "Application URL": jobURL,
-    "Ap"
-  }
-  return [jobTitle, jobURL];
+    Status: "Applied",
+    CompanyName: companyName,
+    CompanyURL: companyURL,
+    "Job Poster": jobPoster,
+    "Type Of Application": ["Easy Apply"],
+  };
+
+  return airtableRecord;
+}
+
+function getButtonText() {
+  return document.getElementsByClassName(
+    "jobs-apply-button artdeco-button artdeco-button--3 artdeco-button--primary ember-view"
+  )[0].innerText;
 }
