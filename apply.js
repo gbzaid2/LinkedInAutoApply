@@ -31,15 +31,17 @@ async function main() {
       for (job of jobs) {
         try {
           await driver.sleep(1000 * appSpeedFactor);
-          job.click();
-          job.click();
-          let airtableRecord = await driver.executeScript(extractJobFields);
-          airtableRecord["Applied Date"] = todayDate;
-          pushToAirTable(airtableRecord);
+          await job.click();
+          await driver.sleep(1000 * appSpeedFactor);
+          let result = await driver.executeAsyncScript(apply);
+          if (result === 0) {
+            let airtableRecord = await driver.executeScript(extractJobFields);
+            airtableRecord["Applied Date"] = todayDate;
+            pushToAirTable(airtableRecord);
+          }
           await driver.sleep(2000 * appSpeedFactor);
-          await apply(driver);
         } catch (err) {
-          
+          console.log("Couldn't click/process this job, line 44");
           continue;
         }
         //ok
@@ -100,73 +102,63 @@ function verifySubmitAppButton() {
   }
 }
 
-async function apply(driver) {
-  // Click Easy Apply
-  try {
-    const easyApplyBtn = await driver.findElements(
-      By.className(
-        "jobs-apply-button artdeco-button artdeco-button--3 artdeco-button--primary ember-view"
-      )
-    );
-    await driver.sleep(500 * appSpeedFactor);
-    await easyApplyBtn[0].click();
-  } catch {
-    return;
+async function apply() {
+  var callback = arguments[arguments.length - 1];
+  var ezapply = document.getElementsByClassName(
+    "jobs-apply-button artdeco-button artdeco-button--3 artdeco-button--primary ember-view"
+  )[0];
+  await new Promise((r) => setTimeout(r, 1000));
+  if (ezapply === undefined) {
+    callback(1);
+  } else {
+    ezapply.click();
   }
+  await new Promise((r) => setTimeout(r, 500));
+  var button = document.getElementsByClassName(
+    "artdeco-button artdeco-button--2 artdeco-button--primary ember-view"
+  )[0];
 
-  // Submit Application if possible
-  try {
-    // unfollow company
-    await driver.sleep(500 * appSpeedFactor);
-    await driver.executeScript(unfollowCompany);
-    if (!(await driver.executeScript(verifySubmitAppButton))) {
-      throw "No submit button here";
-    } else {
-      let submitApp = await driver.findElements(
-        By.className(
-          "artdeco-button artdeco-button--2 artdeco-button--primary ember-view"
-        )
-      );
-      await submitApp[0].click();
-      await driver.wait(1000 * appSpeedFactor);
-
-    }
-    await driver.sleep(500 * appSpeedFactor);
-    let submitApp = await driver.findElements(
-      By.className(
-        "artdeco-button artdeco-button--2 artdeco-button--primary ember-view"
-      )
-    );
-
-    while(await submitApp[0].getText() === "Next" || await submitApp[0].getText() === "Review" || await submitApp[0].getText() === "Review Application"){
-      await driver.sleep(1000 * appSpeedFactor);
-      await submitApp[0].click(); 
-      submitApp = await driver.findElements(
-        By.className(
-          "artdeco-button artdeco-button--2 artdeco-button--primary ember-view"
-        )
-      );
-    }
-
-
-  } catch (err) {
-    // otherwise quit application
+  console.log(button.innerText);
+  // Keep clicking next
+  while (button.innerText !== "Submit application") {
+    await new Promise((r) => setTimeout(r, 1000));
+    var progress = document.getElementsByClassName(
+      "artdeco-completeness-meter-linear__progress-element"
+    )[0];
+    var progressValueOld = progress.value;
     
-    const closeAppBtn = await driver.findElements(
-      By.className(
+    button.click();
+    
+    if (progressValueOld === progress.value) {
+      console.log("Can't complete application; discarding.");
+      var close = document.getElementsByClassName(
         "artdeco-modal__dismiss artdeco-button artdeco-button--circle artdeco-button--muted artdeco-button--2 artdeco-button--tertiary ember-view"
-      )
-    );
-    closeAppBtn[0].click();
-    await driver.sleep(300 * appSpeedFactor);
-    await driver.sleep(500 * appSpeedFactor);
-    const discardBtn = await driver.findElements(
-      By.className(
+      )[0];
+      close.click();
+      var discard = document.getElementsByClassName(
         "artdeco-modal__confirm-dialog-btn artdeco-button artdeco-button--2 artdeco-button--primary ember-view"
-      )
-    );
-    await discardBtn[0].click();
+      )[0];
+      discard.click();
+      callback(1);
+    }
+    button = document.getElementsByClassName(
+      "artdeco-button artdeco-button--2 artdeco-button--primary ember-view"
+    )[0];
   }
+  await new Promise((r) => setTimeout(r, 500));
+  // Final page
+  var unfollowCheck = document.getElementById("follow-company-checkbox");
+  if (unfollowCheck !== null) unfollowCheck.click();
+  button.click();
+  await new Promise((r) => setTimeout(r, 1000));
+  // Check to see if dialog needs to be closed
+  var close = document.getElementsByClassName(
+    "artdeco-modal__dismiss artdeco-button artdeco-button--circle artdeco-button--muted artdeco-button--2 artdeco-button--tertiary ember-view"
+  )[0];
+  if (close !== undefined) {
+    close.click();
+  }
+  callback(0);
 }
 
 async function securityCheck() {

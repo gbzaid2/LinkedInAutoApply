@@ -59,3 +59,50 @@ async function clickNextOrSubmit(){
   if(close !== undefined) close.click();
   return 0;
 }
+
+
+async function apply(){
+  var ezapply = document.getElementsByClassName("jobs-apply-button artdeco-button artdeco-button--3 artdeco-button--primary ember-view")[0];
+  await new Promise(r => setTimeout(r, 2000));
+  if(ezapply === undefined) {   
+    throw "Already applied";
+  } else {
+    ezapply.click();
+  }
+  await new Promise(r => setTimeout(r, 500));
+  var button = document.getElementsByClassName("artdeco-button artdeco-button--2 artdeco-button--primary ember-view")[0];
+  
+  console.log(button.innerText);
+  // Keep clicking next
+  while(button.innerText !== "Submit application"){
+    await new Promise(r => setTimeout(r, 500));
+    console.log("im in the while loop")
+    var progress = await $x("/html/body/div[4]/div/div/div[2]/div/div[1]/div/div/progress")[0];
+    var progressValueOld = progress.value;
+    console.log("about to click next");
+    button.click();
+    console.log("after click")
+    if(progressValueOld === progress.value) {
+      
+      console.log("Can't progress");
+      var close = document.getElementsByClassName("artdeco-modal__dismiss artdeco-button artdeco-button--circle artdeco-button--muted artdeco-button--2 artdeco-button--tertiary ember-view")[0];
+      close.click();
+      var discard = document.getElementsByClassName("artdeco-modal__confirm-dialog-btn artdeco-button artdeco-button--2 artdeco-button--primary ember-view")[0];
+      discard.click();
+      return 1;
+    }
+    button = document.getElementsByClassName("artdeco-button artdeco-button--2 artdeco-button--primary ember-view")[0];
+  }
+  await new Promise(r => setTimeout(r, 500));
+  // Final page 
+  var unfollowCheck = document.getElementById("follow-company-checkbox");
+  if(unfollowCheck !== null) unfollowCheck.click();
+  button.click();
+  await new Promise(r => setTimeout(r, 1000));
+  // Check to see if dialog needs to be closed
+  var close = document.getElementsByClassName("artdeco-modal__dismiss artdeco-button artdeco-button--circle artdeco-button--muted artdeco-button--2 artdeco-button--tertiary ember-view")[0];
+  if(close !== undefined){
+    close.click();
+  }
+  return 0; 
+}

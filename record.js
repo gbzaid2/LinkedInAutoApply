@@ -14,7 +14,7 @@ const pushToAirtable = async function(application){
             console.log("Couldn't push to airtable");
         } else {
             console.log("Pushed to airtable");
-            console.log(record);
+           
         }
     });
 }
