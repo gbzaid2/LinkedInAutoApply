@@ -2,17 +2,17 @@ const { Builder, By, Key, until } = require("selenium-webdriver");
 const { email, password } = require("./linkedinLogin.json");
 const prompt = require("prompt-sync")();
 const todayDate = require("./dateToday.js");
-const pushToAirTable = require("./record").pushToAirtable;
+//const pushToAirTable = require("./record").pushToAirtable;
 
-let appSpeedFactor = 1; // Controls speed of applying
+let appSpeedFactor = 2; // Controls speed of applying
 async function main() {
   let driver = await new Builder().forBrowser("firefox").build();
   const linkedInUrl =
-    "https://www.linkedin.com/jobs/search/?f_LF=f_AL%2Cf_EA&f_TPR=r86400&geoId=103644278&keywords=software%20engineer&location=United%20States";
-  const linkedInUrlNew =
-    "https://www.linkedin.com/jobs/search/?f_LF=f_AL%2Cf_EA&f_TPR=r604800&geoId=103644278&keywords=software%20engineer&location=United%20States";
+    "https://www.linkedin.com/jobs/search/?f_LF=f_AL%2Cf_EA&f_TPR=r604800&geoId=103644278&keywords=software%20engineer%20NOT%20(%22frontend%22%20OR%20%22front%20end%22%20OR%20%22web%22)&location=United%20States";
+
   try {
-    await driver.get(linkedInUrlNew);
+    console.log("Session id: " + driver.getSession());
+    await driver.get(linkedInUrl);
     await driver.sleep(1000 * appSpeedFactor);
     await signIn(driver);
     prompt("ENTER ANY KEY TO CONTINUE");
@@ -31,13 +31,15 @@ async function main() {
       for (job of jobs) {
         try {
           await driver.sleep(1000 * appSpeedFactor);
+          // Check to see if dialog needs to be closed
+          await driver.executeScript(closeModal);
           await job.click();
-          await driver.sleep(1000 * appSpeedFactor);
+          await driver.sleep(2000 * appSpeedFactor);
           let result = await driver.executeAsyncScript(apply);
           if (result === 0) {
             let airtableRecord = await driver.executeScript(extractJobFields);
             airtableRecord["Applied Date"] = todayDate;
-            pushToAirTable(airtableRecord);
+            //pushToAirTable(airtableRecord);
           }
           await driver.sleep(2000 * appSpeedFactor);
         } catch (err) {
@@ -114,6 +116,18 @@ async function apply() {
     ezapply.click();
   }
   await new Promise((r) => setTimeout(r, 500));
+
+  // Edge case
+  var edgeButton = document.getElementsByClassName(
+    "js-message-apply-submit artdeco-button artdeco-button--3 artdeco-button--primary ember-view"
+  );
+  if (
+    edgeButton.length > 0 &&
+    edgeButton[0].innerText === "Submit application"
+  ) {
+    edgeButton[0].click();
+    callback(0);
+  }
   var button = document.getElementsByClassName(
     "artdeco-button artdeco-button--2 artdeco-button--primary ember-view"
   )[0];
@@ -126,15 +140,16 @@ async function apply() {
       "artdeco-completeness-meter-linear__progress-element"
     )[0];
     var progressValueOld = progress.value;
-    
+
     button.click();
-    
+
     if (progressValueOld === progress.value) {
       console.log("Can't complete application; discarding.");
       var close = document.getElementsByClassName(
         "artdeco-modal__dismiss artdeco-button artdeco-button--circle artdeco-button--muted artdeco-button--2 artdeco-button--tertiary ember-view"
       )[0];
       close.click();
+      await new Promise((r) => setTimeout(r, 500));
       var discard = document.getElementsByClassName(
         "artdeco-modal__confirm-dialog-btn artdeco-button artdeco-button--2 artdeco-button--primary ember-view"
       )[0];
@@ -158,13 +173,31 @@ async function apply() {
   if (close !== undefined) {
     close.click();
   }
-  callback(0);
+  await new Promise((r) => setTimeout(r, 500));
+  // check to see if it needs to discard application becasue of an error submitting
+  var discard = document.getElementsByClassName(
+    "artdeco-modal__confirm-dialog-btn artdeco-button artdeco-button--2 artdeco-button--primary ember-view"
+  )[0];
+  if (discard !== undefined) {
+    discard.click();
+    callback(1);
+  } else {
+    callback(0);
+  }
 }
 
 async function securityCheck() {
   return driver.titleIs("Security Verification | LinkedIn");
 }
 
+function closeModal() {
+  var close = document.getElementsByClassName(
+    "artdeco-modal__dismiss artdeco-button artdeco-button--circle artdeco-button--muted artdeco-button--2 artdeco-button--tertiary ember-view"
+  )[0];
+  if (close !== undefined) {
+    close.click();
+  }
+}
 function getLastPageNum() {
   var pageNum = document.getElementsByClassName(
     "artdeco-pagination__pages artdeco-pagination__pages--number"
