@@ -1,5 +1,5 @@
 # LinkedInAutoApply
-## Because the job search sucks ass
+
 
 ### What this does:
 This is a  program i wrote to apply to jobs automatically on linkedin's job board. It applies to most "ez-apply jobs" by clicking through form fields that are already filled out or don't require to be filled out. Simply put, if you can easily keep clicking "next" on the application process and then finally "submit application" then this program will be able to apply to that job.
