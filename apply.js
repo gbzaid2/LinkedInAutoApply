@@ -2,6 +2,7 @@ const { Builder, By, Key, until } = require("selenium-webdriver");
 const { email, password } = require("./linkedinLogin.json");
 const prompt = require("prompt-sync")();
 const todayDate = require("./dateToday.js");
+require('geckodriver');
 //const pushToAirTable = require("./record").pushToAirtable;
 
 let appSpeedFactor = 2; // Controls speed of applying
